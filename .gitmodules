@@ -1,0 +1,3 @@
+[submodule "tool/hdf5-to-lerobot-converter"]
+	path = tool/hdf5-to-lerobot-converter
+	url = https://github.com/LUhaotao/hdf5-to-lerobot-converter.git
