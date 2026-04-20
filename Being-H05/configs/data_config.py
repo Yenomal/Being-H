@@ -371,11 +371,11 @@ class BreadDataConfig(BaseDataConfig):
             'action.eef_rotation': ModalityDef(
                 source_column=action_source_column, start=3, end=6, absolute=True, rotation_type="axis_angle"
             ),
-            'action.dexhand_position_extra': ModalityDef(
-                source_column=action_source_column, start=12, end=18, absolute=True
-            ),
             'action.dexhand_position': ModalityDef(
                 source_column=action_source_column, start=6, end=12, absolute=True
+            ),
+            'action.dexhand_position_extra': ModalityDef(
+                source_column=action_source_column, start=12, end=18, absolute=True
             ),
         }
         modalities = self.add_video_modality(modalities)

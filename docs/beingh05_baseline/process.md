@@ -18,7 +18,8 @@ PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpo
 - 待办：
 - [] 需要确认这里的hdf5具体数据内涵（velocity / effort是什么？接入不接入）
 - [] action和qpos是否同顺序同语义
-- [x] 需要action是delta还是absolute
+- [x] 需要action是delta还是absolute —— absolute
+- [x] 四元数的格式是wxyz还是xyzw —— xyzw
 ---
 2. config
 ```text
@@ -26,6 +27,8 @@ PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpo
 1. Being-H05/configs/data_config.py：增加bread的config类 BreadDataConfig，DATA_CONFIG_MAP注册类
 2. Being-H05/configs/dataset_info.py：DATASET_REGISTRY增加group名 bread_posttrain，DATASET_INFO增加lerobot数据路径
 3. Being-H05/configs/posttrain/bread/bread.yaml：使用最基本的 bread.yaml 完成和 data_config.py、dataset_info.py 的对应即可
+
+这组数据是四元数，需要使用四元数to轴角数据的转换脚本 Being-H05/configs/convert_quat_to_axis_angle.py
 ```
 PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用extra的位置，这样不一定好用
 - 待办：
@@ -43,14 +46,23 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 
 请注意所有的脚本需要在Being-H/下运行
 
-- hdf5_to_lerobot:
+- hdf5_to_lerobot：
 在./tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py内设定输出路径
-uv run ./tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py \
+
+python tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py \
   --raw-dir ./datasets/raw/test_EE \
   --repo-id test_EE \
   --task "pick the bread and place it in the machine" \
   --mode video
 
-uv run ./tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py   --raw-dir ./datasets/raw/test_EE   --repo-id test_EE   --task "pick the bread and place it in the machine"   --mode video
+python tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py   --raw-dir ./datasets/raw/test_EE   --repo-id test_EE   --task "pick the bread and place it in the machine"   --mode video
+
+- quat四元数 to 轴角：
+
+python Being-H05/configs/convert_quat_to_axis_angle.py \
+  --dataset-root ./datasets/lerobot/test_EE \
+  --quat-order xyzw
+
+python Being-H05/configs/convert_quat_to_axis_angle.py   --dataset-root ./datasets/lerobot/test_EE   --quat-order xyzw
 
 - train：
