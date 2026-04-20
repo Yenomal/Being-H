@@ -91,6 +91,8 @@ ckpt/
 
 # process file
 cuda_13.0.0_580.65.06_linux.run
+cuda_12.1.0_530.30.02_linux.run
+cuda_12.8.0_570.86.10_linux.run
 AI_docs/
 datasets/
 

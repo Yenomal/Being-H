@@ -21,6 +21,7 @@ PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpo
 - [x] 需要action是delta还是absolute —— absolute
 - [x] 四元数的格式是wxyz还是xyzw —— xyzw
 ---
+
 2. config
 ```text
 在开始训练前需要申请与自己数据相关的config，此处的config配置如下：
@@ -35,6 +36,7 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 - [] 需要查看原文对于XHand的支持如何
 - [] 确认dataset_info.py内的SftJSONLIterableDataset是什么数据集
 ---
+
 3. train
 ```text
 增加一个bread的训练脚本——Being-H05/scripts/train/train_bread_test.py，需要修改这样一些参数：
@@ -45,8 +47,14 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 5. Datasets、Ckpt路径
 ```
 PS. 通过token控制了batch量
+
 ## 下一步计划
-1. 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
+
+- [] 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
+
+- [] 对齐config和data，看看有没有需要对data进行处理的部分
+
+- [] 对齐输出和底层控制
 
 ## 相关脚本记录
 
@@ -80,3 +88,46 @@ hf download Qwen/Qwen3-0.6B --local-dir ./ckpt/model/Qwen3-0.6B
 - train：
 
 bash Being-H05/scripts/train/train_bread_test.sh
+
+## 注意事项
+
+1. 需要pip install av -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+2. 项目的cuda版本是13.0，但是我们的服务器最高只支持12.8，需要先装torch——pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128，然后安装requirements.txt内容，然后安装flash-attn，后续可以尝试一下cuda12.1——pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+
+3. 接续上面2，我们重装torch后重装flash-attn，发现报错限制flash-attn二进制文件错误，这是因为flash-attn重装的时候缓存信息还在，so依然指向cuda13.0，需要先清理缓存信息
+
+4. 记得配环境的时候增加镜像源，或者增加到本机的代理，最好增加镜像源：pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+## 使用流程
+
+此处记录如何使用自己的数据集进行Train、Inference过程，注意使用需要**保证自己在Being-H路径下**：
+
+---
+- Train，假设数据集为hdf5
+
+1. 数据预处理：转hdf5数据到lerobot格式，根据slots格式调整数据维度以对齐slots
+
+2. config设置：配置[data_config.py](Being-H05/configs/data_config.py)、[dataset_info.py](Being-H05/configs/dataset_info.py)，并增加一个yaml文件进行配置，参考[config_template.yaml](Being-H05/configs/posttrain/config_template.yaml)配置
+
+3. 调整train bash脚本内容，主要是GPU相关信息
+
+---
+- Inference
+
+1. 保证数据进行相同的预处理
+
+2. 输出和底层输出之间的Adapter设计
+
+--- 
+- python环境
+
+- 配置清华镜像源：pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+1. 安装torch（同时安装配套的cuda，建议装12.1，比较稳定）
+    1. cuda12.1：pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
+    2. cuda12.8：pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0
+
+2. 安装requirements.txt（需要将av放进requirements.txt，否则单独安装av）：pip install -r ./Being-H05/requirements.txt
+
+3. 安装flash-attn：pip install flash-attn --no-build-isolation（配置flash attn需要torch+对应的cuda）
