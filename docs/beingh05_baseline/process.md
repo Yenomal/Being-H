@@ -37,8 +37,14 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 ---
 3. train
 ```text
-增加一个bread的训练脚本——Being-H05/scripts/train/train_bread_test.py
+增加一个bread的训练脚本——Being-H05/scripts/train/train_bread_test.py，需要修改这样一些参数：
+1. 模型超参数（建议是完全不动超参数，尽量通过与数据相关的config和预处理解决问题）
+2. 环境参数（主要的比如wandb、GPU）
+3. InternVL3、Qwen3模型路径
+4. Output路径
+5. Datasets、Ckpt路径
 ```
+PS. 通过token控制了batch量
 ## 下一步计划
 1. 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
 
@@ -65,4 +71,12 @@ python Being-H05/configs/convert_quat_to_axis_angle.py \
 
 python Being-H05/configs/convert_quat_to_axis_angle.py   --dataset-root ./datasets/lerobot/test_EE   --quat-order xyzw
 
+- 拉取qwen3、internvl3
+
+hf download OpenGVLab/InternVL3_5-2B-HF --local-dir ./ckpt/model/InternVL3_5-2B-HF
+
+hf download Qwen/Qwen3-0.6B --local-dir ./ckpt/model/Qwen3-0.6B
+
 - train：
+
+bash Being-H05/scripts/train/train_bread_test.sh

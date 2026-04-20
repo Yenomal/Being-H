@@ -13,16 +13,13 @@ export CUDA_VISIBLE_DEVICES=0
 # Required Paths - modify these first
 # =============================================================================
 # TODO: modify all path variables in this section before running.
-ROOT="$(pwd)"
-
-PROJECT_ROOT="${ROOT}/Being-H05"
-SCRIPT_PATH="${ROOT}/Being-H05/scripts/train/train_bread_test.sh"
-PRETRAIN_MODEL="${ROOT}/ckpt/model/InternVL3_5-2B-HF"
-EXPERT_MODEL="${ROOT}/ckpt/model/Qwen3-0.6B"
-RESUME_PATH="${ROOT}/ckpt/Being-H05-2B"
-DATASET_CONFIG_FILE="${ROOT}/Being-H05/configs/posttrain/bread/bread.yaml"
-OUTPUT_ROOT="${ROOT}/output/bread_smoke"
-LOG_ROOT="${ROOT}/output/tensorboard/bread_smoke"
+PROJECT_ROOT="./Being-H05"
+PRETRAIN_MODEL="../ckpt/model/InternVL3_5-2B-HF"
+EXPERT_MODEL="../ckpt/model/Qwen3-0.6B"
+RESUME_PATH="../ckpt/Being-H05-2B"
+DATASET_CONFIG_FILE="../Being-H05/configs/posttrain/bread/bread.yaml"
+OUTPUT_ROOT="../output/bread_smoke"
+LOG_ROOT="../output/bread_smoke/tensorboard"
 
 cd "${PROJECT_ROOT}"
 
@@ -110,14 +107,13 @@ fi
 mkdir -p "${OUTPUT_DIR}"
 mkdir -p "${LOG_DIR}"
 
-cp "${SCRIPT_PATH}" "${OUTPUT_DIR}/"
+cp "$0" "${OUTPUT_DIR}/"
 mkdir -p "${OUTPUT_DIR}/code"
 cp -r BeingH "${OUTPUT_DIR}/code/"
 
 echo "=========================================="
 echo "Bread smoke test training"
 echo "PROJECT_ROOT: ${PROJECT_ROOT}"
-echo "SCRIPT_PATH: ${SCRIPT_PATH}"
 echo "PRETRAIN_MODEL: ${PRETRAIN_MODEL}"
 echo "EXPERT_MODEL: ${EXPERT_MODEL}"
 echo "RESUME_PATH: ${RESUME_PATH}"
