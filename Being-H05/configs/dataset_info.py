@@ -1,12 +1,14 @@
 
+from pathlib import Path
+
 from BeingH.dataset.datasets.vla_dataset import LeRobotIterableDataset
 from BeingH.dataset.datasets.vlm_dataset import SftJSONLIterableDataset
-
 
 DATASET_REGISTRY = {
     'libero_posttrain': LeRobotIterableDataset,
     'robocasa_human_posttrain': LeRobotIterableDataset,
     'uni_posttrain': LeRobotIterableDataset,
+    'bread_posttrain': LeRobotIterableDataset,
 }
 
 
@@ -102,6 +104,13 @@ DATASET_INFO = {
         },
         'single_panda_gripper.TurnSinkSpout': {
             'dataset_path': "/share/dataset/beingh_posttrain/robocasa_human/single_stage/TurnSinkSpout",
+        },
+    },
+
+    'bread_posttrain': {
+        'bread': {
+            # Repository-relative dataset resolution, avoiding machine-specific absolute paths.
+            'dataset_path': "../../datasets/lerobot/test_EE",
         },
     },
 
