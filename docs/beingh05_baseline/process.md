@@ -1,5 +1,7 @@
 # beingh05 baseline
 
+- BeingH05的相关信息参考[README.md](Being-H05/README.md)相关文件
+
 ## 实验目的
 
 - 跑通beingh05原始数据通路
@@ -10,9 +12,10 @@
 
 1. data
 ```text
-原始数据是hdf5，需要转化成lerobot格式，参考脚本来自https://github.com/LUhaotao/hdf5-to-lerobot-converter，针对灵巧手做了一些调整（偏保守地进行固定设置）：
+原始数据是hdf5，需要转化成lerobot格式，参考脚本来自https://github.com/LUhaotao/hdf5-to-lerobot-converter，针对灵巧手做了一些调整：
 1. 关节状态 14 -> 任意维度（hdf5读取），命名修改成了joint_{id}
 2. 相机维度 (3, 480, 640) -> 任意维度（hdf5读取）
+这里需要注意使用video转换方式
 ```
 PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpos是关节状态，action是控制指令，
 - 待办：
@@ -39,7 +42,7 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 
 3. train
 ```text
-增加一个bread的训练脚本——Being-H05/scripts/train/train_bread_test.py，需要修改这样一些参数：
+增加一个bread的训练脚本——Being-H05/scripts/train/train.py，需要修改这样一些参数：
 1. 模型超参数（建议是完全不动超参数，尽量通过与数据相关的config和预处理解决问题）
 2. 环境参数（主要的比如wandb、GPU）
 3. InternVL3、Qwen3模型路径
@@ -81,13 +84,13 @@ python Being-H05/configs/convert_quat_to_axis_angle.py   --dataset-root ./datase
 
 - 拉取qwen3、internvl3
 
-hf download OpenGVLab/InternVL3_5-2B-HF --local-dir ./ckpt/model/InternVL3_5-2B-HF
+hf download OpenGVLab/InternVL3_5-2B --local-dir ./ckpt/model/InternVL3_5-2B
 
 hf download Qwen/Qwen3-0.6B --local-dir ./ckpt/model/Qwen3-0.6B
 
 - train：
 
-bash Being-H05/scripts/train/train_bread_test.sh
+bash Being-H05/scripts/train/train.sh
 
 ## 注意事项
 
@@ -125,9 +128,22 @@ bash Being-H05/scripts/train/train_bread_test.sh
 - 配置清华镜像源：pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 1. 安装torch（同时安装配套的cuda，建议装12.1，比较稳定）
-    1. cuda12.1：pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
+    1. cuda12.1：pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1（至少需要torch >= 2.5，因为flex_attention需要，装好了运行的时候可能也找不到，需要unset掉一个环境变量——unset LD_LIBRARY_PATH）
     2. cuda12.8：pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0
 
 2. 安装requirements.txt（需要将av放进requirements.txt，否则单独安装av）：pip install -r ./Being-H05/requirements.txt
 
-3. 安装flash-attn：pip install flash-attn --no-build-isolation（配置flash attn需要torch+对应的cuda）
+3. 安装flash-attn：pip install flash-attn --no-build-isolation（配置flash attn需要torch+对应的cuda），flash-attn实时编译应该是有点问题，后面看看，可以问问ai有社区的wheel版本的，具体而言使用了这样的安装命令：
+
+    1. 查看ABI情况
+    ``` text
+    python - <<'PY'
+    import torch
+    print(torch._C._GLIBCXX_USE_CXX11_ABI)
+    PY
+    ```
+    2. 安装 flash-attn
+    ``text
+    ABI=true：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.4/cu12/abiTRUE/cp310/flash_attn-2.8.3+cu12torch2.4cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"
+    ABI=false：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.4/cu12/abiFALSE/cp310/flash_attn-2.8.3+cu12torch2.4cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+    ```

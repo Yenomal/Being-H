@@ -7,61 +7,149 @@ set -euo pipefail
 export PYTHONPATH=.
 export NCCL_IB_DISABLE=0
 export NO_ALBUMENTATIONS_UPDATE=1
-export CUDA_VISIBLE_DEVICES=0
 
 # =============================================================================
-# Required Paths - modify these first
+# 路径配置
 # =============================================================================
-# TODO: modify all path variables in this section before running.
+# 当前脚本默认从 Being-H 根目录启动：
+#   bash Being-H05/scripts/train/train.sh
 ROOT="$(pwd)"
 
+# 项目根目录（Being-H05）
 PROJECT_ROOT="${ROOT}/Being-H05"
-SCRIPT_PATH="${ROOT}/Being-H05/scripts/train/train_bread_test.sh"
-PRETRAIN_MODEL="${ROOT}/ckpt/model/InternVL3_5-2B-HF"
+
+# 当前脚本自身路径，用于保存复现实验脚本副本
+SCRIPT_PATH="${ROOT}/Being-H05/scripts/train/train.sh"
+
+# 基础多模态模型路径（InternVL 非 HF 格式）
+PRETRAIN_MODEL="${ROOT}/ckpt/model/InternVL3_5-2B"
+
+# Action Expert / LLM expert 路径
 EXPERT_MODEL="${ROOT}/ckpt/model/Qwen3-0.6B"
+
+# Being-H 预训练或上游 checkpoint 路径
 RESUME_PATH="${ROOT}/ckpt/Being-H05-2B"
+
+# 数据配置 YAML 路径
 DATASET_CONFIG_FILE="${ROOT}/Being-H05/configs/posttrain/bread/bread.yaml"
-OUTPUT_ROOT="${ROOT}/output/bread_smoke"
-LOG_ROOT="${ROOT}/output/tensorboard/bread_smoke"
+
+# 输出根目录
+OUTPUT_ROOT="${ROOT}/output/bread_train"
+
+# TensorBoard 日志根目录
+LOG_ROOT="${ROOT}/output/tensorboard/bread_train"
 
 cd "${PROJECT_ROOT}"
 
 # =============================================================================
-# Smoke Test Configuration
+# GPU / 分布式配置
 # =============================================================================
+# 指定要使用的物理 GPU 编号列表
+# 例如单卡：0
+# 例如四卡：4,5,6,7
+export CUDA_VISIBLE_DEVICES=0
+
+# 使用多少张“可见 GPU”
+# 这个值应与 CUDA_VISIBLE_DEVICES 里的卡数一致
 NUM_GPUS=1
+
+# torchrun 通信端口
 MASTER_PORT=29116
 
-MAX_STEPS=1
-SAVE_STEPS=1000
-SAVE_STEPS_START=100000
+# =============================================================================
+# 训练步数与保存配置
+# =============================================================================
+# 总训练步数
+MAX_STEPS=20000
+
+# 每隔多少步保存一次 checkpoint
+SAVE_STEPS=2000
+
+# 从第多少步开始允许保存 checkpoint
+SAVE_STEPS_START=2000
+
+# 是否只保存模型，不保存优化器和 scheduler
 SAVE_MODEL_ONLY=True
+
+# 是否保存 merged metadata
 SAVE_MERGED_META=True
 
+# =============================================================================
+# 优化器配置
+# =============================================================================
 LEARNING_RATE=1e-4
 WEIGHT_DECAY=1e-5
 WARMUP_RATIO=0.01
 
+# 累积梯度步数
+# 想增大等效 batch、但又不想显存暴涨时可以调大
+GRADIENT_ACCUMULATION_STEPS=1
+
+# =============================================================================
+# 数据加载配置
+# =============================================================================
+# DataLoader worker 数
 NUM_WORKERS=0
+
+# 每个 worker 预取 batch 数
 PREFETCH_FACTOR=2
 
-MAX_NUM_TOKENS=4096
-EXPECTED_NUM_TOKENS=2048
-PREFER_BUFFER_BEFORE=1024
-MAX_BUFFER_SIZE=2
+# =============================================================================
+# Token packing / 等效 batch 配置
+# =============================================================================
+# 这套项目不是固定 batch_size，而是按 token 数动态组 batch
+#
+# MAX_NUM_TOKENS:
+#   一个 packed batch 的硬上限；越大通常显存越高
+#
+# EXPECTED_NUM_TOKENS:
+#   达到这个 token 数后，dataset 就倾向于把当前 batch 产出
+#
+# PREFER_BUFFER_BEFORE:
+#   当前 batch token 数低于这个值时，优先从 buffer 取样本而不是新采样
+#
+# MAX_BUFFER_SIZE:
+#   buffer 最多缓存多少个样本
+MAX_NUM_TOKENS=8192
+EXPECTED_NUM_TOKENS=4096
+PREFER_BUFFER_BEFORE=2048
+MAX_BUFFER_SIZE=4
+
+# 注意力模式
 ATTN_MODE="causal"
 
+# =============================================================================
+# 图像 / 视角配置
+# =============================================================================
+# 输入图像尺寸
 FORCE_IMAGE_SIZE=224
+
+# 最多使用多少个视角
+# -1 表示使用 DataConfig 中的全部视角
 MAX_VIEW_NUM=-1
+
+# 是否固定只使用一个视角
 USE_FIXED_VIEW=False
+
+# ViT token 下采样比例
 DOWN_SAMPLE_RATIO=0.5
 
+# =============================================================================
+# 动作生成配置
+# =============================================================================
+# 每次预测多少步动作
 ACTION_CHUNK_LENGTH=16
 
+# =============================================================================
+# 冻结配置
+# =============================================================================
 FREEZE_MLLM=False
 FREEZE_VIT_MLP=False
 
-# Use the simplest path for smoke test.
+# =============================================================================
+# MPG 配置
+# =============================================================================
+# 是否启用 MPG
 USE_MPG=False
 MPG_LAMBDA=0.1
 MPG_NUM_PROJECTIONS=32
@@ -69,31 +157,32 @@ MPG_REFINEMENT_ITERS=1
 MPG_GATE_TEMPERATURE=1.0
 MPG_USE_STOP_GRADIENT=True
 
+# =============================================================================
+# RTC 配置
+# =============================================================================
 USE_TRAINING_TIME_RTC=False
 SIMULATED_DELAY=0
 RTC_DELAY_EXP_WEIGHT=True
 USE_INFERENCE_PREFIX_OVERWRITE=True
 
 # =============================================================================
-# Output
+# 输出目录
 # =============================================================================
-MODEL_NAME="smoke-bread_$(date +%Y%m%d_%H%M%S)"
+MODEL_NAME="bread_$(date +%Y%m%d_%H%M%S)"
 OUTPUT_DIR="${OUTPUT_ROOT}/${MODEL_NAME}"
 LOG_DIR="${LOG_ROOT}"
 LOG_FILE="${OUTPUT_DIR}/training.log"
 
 # =============================================================================
-# Sanity Checks
+# 检查路径
 # =============================================================================
 if [ ! -d "${PRETRAIN_MODEL}" ]; then
   echo "Error: PRETRAIN_MODEL does not exist: ${PRETRAIN_MODEL}"
-  echo "Modify PRETRAIN_MODEL in ${0} before running."
   exit 1
 fi
 
 if [ ! -d "${EXPERT_MODEL}" ]; then
   echo "Error: EXPERT_MODEL does not exist: ${EXPERT_MODEL}"
-  echo "Modify EXPERT_MODEL in ${0} before running."
   exit 1
 fi
 
@@ -115,7 +204,7 @@ mkdir -p "${OUTPUT_DIR}/code"
 cp -r BeingH "${OUTPUT_DIR}/code/"
 
 echo "=========================================="
-echo "Bread smoke test training"
+echo "Bread training"
 echo "PROJECT_ROOT: ${PROJECT_ROOT}"
 echo "SCRIPT_PATH: ${SCRIPT_PATH}"
 echo "PRETRAIN_MODEL: ${PRETRAIN_MODEL}"
@@ -126,7 +215,7 @@ echo "OUTPUT_DIR: ${OUTPUT_DIR}"
 echo "=========================================="
 
 # =============================================================================
-# Launch Training
+# 启动训练
 # =============================================================================
 torchrun \
   --nnodes=1 \
@@ -174,7 +263,7 @@ torchrun \
   --warmup_ratio ${WARMUP_RATIO} \
   --lr_scheduler cosine \
   --grad_checkpoint False \
-  --gradient_accumulation_steps 1 \
+  --gradient_accumulation_steps ${GRADIENT_ACCUMULATION_STEPS} \
   --use_mpg ${USE_MPG} \
   --mpg_lambda ${MPG_LAMBDA} \
   --mpg_num_projections ${MPG_NUM_PROJECTIONS} \
@@ -188,7 +277,7 @@ torchrun \
   2>&1 | tee "${LOG_FILE}"
 
 echo "=========================================="
-echo "Bread smoke test complete"
+echo "Training complete"
 echo "Output: ${OUTPUT_DIR}"
 echo "Log: ${LOG_FILE}"
 echo "=========================================="

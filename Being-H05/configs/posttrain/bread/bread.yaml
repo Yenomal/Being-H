@@ -1,31 +1,53 @@
+# 当前 bread 数据的训练分组名，需要与 dataset_info.py 中的 DATASET_REGISTRY / DATASET_INFO 对齐
 bread_posttrain:
+  # 参与训练的子数据集名字列表，对应 DATASET_INFO['bread_posttrain'] 下的键
   dataset_names:
   - bread
 
+  # 每个子数据集对应一个 DataConfig 名字，对应 data_config.py 里的 DATA_CONFIG_MAP
   data_config_names:
   - "bread"
 
+  # 每个子数据集对应一个 embodiment 标签
+  # 这里先用 new_embodiment 占位，后续如果新增正式 embodiment 枚举再替换
   embodiment_tags:
   - "new_embodiment"
 
+  # 采样策略
+  # step: 以单步为采样单位
+  # trajectory: 以整条轨迹为采样单位
   sampling_strategy: "step"
+
+  # 视频读取后端，当前数据已转成 LeRobot video 模式，torchvision_av 可直接按时间戳取帧
   video_backend: "torchvision_av"
 
+  # ViT 图像预处理参数
   vit_transform_args:
+    # 使用 Being-H 内置视觉增强模板
     type: "beingh"
+    # 图像归一化方式，需与基础视觉模型预训练方式匹配
     normalize_type: "imagenet"
+    # 颜色抖动，正式训练可开，想要更稳定可关
     use_color_jitter: false
 
+  # 每个子数据集的视频抽帧步长，1 表示逐帧可采样
   frame_step_size:
   - 1
 
+  # 每个 task 最多使用多少个 episode
+  # -1 表示该 task 下的所有 episode 都使用
   num_used_episodes_per_task:
   - -1
 
+  # 每个子数据集最多使用多少个 episode
+  # -1 表示该子数据集所有 episode 都使用
   num_used_episodes_per_dataset:
   - -1
 
+  # 每个子数据集最多使用多少帧
+  # -1 表示使用全部帧；正式训练建议保持 -1
   num_used_frames_per_dataset:
-  - 128
+  - -1
 
+  # 该数据组在多数据组混合训练时的采样权重
   weight: 1

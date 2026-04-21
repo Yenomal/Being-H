@@ -1,0 +1,106 @@
+# 通用训练数据配置模板
+# 用法：
+# 1. 顶层 key 是一个“数据组名”，需要与 dataset_info.py 中的 DATASET_REGISTRY / DATASET_INFO 对齐
+# 2. dataset_names / data_config_names / embodiment_tags 这三组列表需要一一对应，长度必须相同
+# 3. 对于单数据集训练，每个列表通常只有一个元素
+
+your_dataset_group_name:
+  # 子数据集名字列表，对应 DATASET_INFO[数据组名] 下的键
+  dataset_names:
+  - your_dataset_name
+
+  # 每个子数据集对应的 DataConfig 名字，对应 data_config.py 中的 DATA_CONFIG_MAP
+  data_config_names:
+  - "your_data_config_name"
+
+  # 每个子数据集对应的 embodiment 标签
+  # 需要能被 EmbodimentTag(...) 接受；自定义数据可先用 "new_embodiment"
+  embodiment_tags:
+  - "new_embodiment"
+
+  # 采样策略
+  # step: 以单步为训练样本
+  # trajectory: 以整条轨迹为训练样本
+  sampling_strategy: "step"
+
+  # 视频读取后端
+  # 常用：torchvision_av / decord / opencv
+  video_backend: "torchvision_av"
+
+  # 统计量层级选择
+  # auto: 自动选择
+  # task: task 级统计量
+  # embodiment: embodiment 级统计量
+  # 当前单数据集训练可省略；跨 embodiment 时更常用
+  # stats_level: "auto"
+
+  # ViT 图像预处理参数
+  vit_transform_args:
+    # Being-H 内置视觉预处理模板
+    type: "beingh"
+
+    # 是否 pad 成正方形
+    # 仅在某些视觉 backbone 或数据源下需要
+    # pad2square: false
+
+    # 是否给动态裁剪加 thumbnail
+    # use_thumbnail: false
+
+    # 是否启用动态图像尺寸
+    # dynamic_image_size: false
+
+    # 动态 patch 最小值
+    # min_dynamic_patch: 1
+
+    # 动态 patch 最大值
+    # max_dynamic_patch: 12
+
+    # 最少视频帧数
+    # min_num_frame: 8
+
+    # 最多视频帧数
+    # max_num_frame: 32
+
+    # 归一化方式，常见有 imagenet / clip / siglip
+    normalize_type: "imagenet"
+
+    # 最小图像尺寸
+    # min_image_size: 256
+
+    # 最大图像尺寸
+    # max_image_size: 256
+
+    # patch stride
+    # image_stride: 14
+
+    # 是否启用动态尺寸
+    # use_dynamic_size: false
+
+    # 是否启用颜色抖动
+    use_color_jitter: false
+
+    # 是否启用 coarse dropout
+    # use_coarse_dropout: false
+
+  # 每个子数据集的视频抽帧步长
+  # 需要与 dataset_names 列表等长
+  frame_step_size:
+  - 1
+
+  # 每个 task 最多使用多少个 episode
+  # -1 表示该 task 下的所有 episode 都使用
+  num_used_episodes_per_task:
+  - -1
+
+  # 每个子数据集最多使用多少个 episode
+  # -1 表示该子数据集所有 episode 都使用
+  num_used_episodes_per_dataset:
+  - -1
+
+  # 每个子数据集最多使用多少帧
+  # -1 表示使用全部帧
+  num_used_frames_per_dataset:
+  - -1
+
+  # 混合训练时该数据组的采样权重
+  weight: 1
