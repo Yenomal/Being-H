@@ -37,7 +37,7 @@ PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpo
 PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用extra的位置，这样不一定好用
 - 待办：
 - [x] 需要查看原文对于XHand的支持如何
-- [] 确认dataset_info.py内的SftJSONLIterableDataset是什么数据集
+- [x] 确认dataset_info.py内的SftJSONLIterableDataset是什么数据集——VQA数据
 ---
 
 3. train
@@ -73,7 +73,7 @@ python tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py \
   --task "pick the bread and place it in the machine" \
   --mode video
 
-python tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py   --raw-dir ./datasets/raw/test_EE   --repo-id test_EE   --task "pick the bread and place it in the machine"   --mode video
+python tool/hdf5-to-lerobot-converter/convert_hdf5_data_to_lerobot.py   --raw-dir ./datasets/raw/temp   --repo-id temp   --task "pick up the watering can and spray the flowers with water"   --mode video
 
 - quat四元数 to 轴角：
 
@@ -92,6 +92,23 @@ hf download Qwen/Qwen3-0.6B --local-dir ./ckpt/model/Qwen3-0.6B
 - train：
 
 bash Being-H05/scripts/train/train.sh
+
+- resize：
+
+python tool/resize_lerobot_videos.py \
+    --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ffmpeg \
+    --ffprobe-bin /root/ffmpeg-7.1-build/bin/ffprobe \
+    --decode-backend pyav \
+    --input-dataset datasets/lerobot/test_EE \
+    --output-dataset datasets/lerobot/test_EE_pad640x480 \
+    --camera-key cam_side \
+    --camera-key cam_wrist \
+    --width 480 \
+    --height 480 \
+    --resize-mode pad \
+    --overwrite
+
+python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ffmpeg  --ffprobe-bin /root/ffmpeg-7.1-build/bin/ffprobe  --input-dataset datasets/lerobot/flower --output-dataset datasets/lerobot/flower_resize  --camera-key cam_side  --camera-key cam_wrist --width 480 --height 480 --resize-mode pad   --overwrite
 
 ## 注意事项
 
@@ -155,7 +172,7 @@ bash Being-H05/scripts/train/train.sh
 
 - [x] 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
 
-- [] 对齐config和data，看看有没有需要对data进行处理的部分
+- [x] 对齐config和data，看看有没有需要对data进行处理的部分
 
 - [x] 对齐输出和底层控制
 
@@ -165,8 +182,8 @@ bash Being-H05/scripts/train/train.sh
 
 当前训练了三个实验——bread、bread_0，其中bread的batch小、步数少没开MPG，整体收敛比较好，bread_0做了MPG的消融实验但是在10k步左右收敛不了，是因为学习率使用余弦调度，而我们总步数设定了100k导致一直学习率太高，下一步我们将会在稳定的post-train上先做一点工作
 
-- [] 参数调节 —— 小学习率、少总步数
+- [x] 参数调节 —— 小学习率、少总步数
 
-- [] 看看减小总步数后怎么样，可以考虑增加一些别的归一化的trick，我们当前的state-action归一化还基本没做
+- [x] 看看减小总步数后怎么样，可以考虑增加一些别的归一化的trick，我们当前的state-action归一化还基本没做
 
-- [] 尝试引入 RTC
+- [x] 尝试引入 RTC

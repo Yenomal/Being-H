@@ -34,10 +34,10 @@ RESUME_PATH="${ROOT}/ckpt/Being-H05-2B"
 DATASET_CONFIG_FILE="${ROOT}/Being-H05/configs/posttrain/bread/bread.yaml"
 
 # 输出根目录
-OUTPUT_ROOT="${ROOT}/output/bread_train"
+OUTPUT_ROOT="${ROOT}/output/runs/flower"
 
 # TensorBoard 日志根目录
-LOG_ROOT="${ROOT}/output/tensorboard/bread_train"
+LOG_ROOT="${ROOT}/output/tensorboard/flower"
 
 cd "${PROJECT_ROOT}"
 
@@ -47,26 +47,26 @@ cd "${PROJECT_ROOT}"
 # 指定要使用的物理 GPU 编号列表
 # 例如单卡：0
 # 例如四卡：4,5,6,7
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=2
 
 # 使用多少张“可见 GPU”
 # 这个值应与 CUDA_VISIBLE_DEVICES 里的卡数一致
 NUM_GPUS=1
 
 # torchrun 通信端口
-MASTER_PORT=29116
+MASTER_PORT=29128
 
 # =============================================================================
 # 训练步数与保存配置
 # =============================================================================
 # 总训练步数
-MAX_STEPS=40000
+MAX_STEPS=30000
 
 # 每隔多少步保存一次 checkpoint
 SAVE_STEPS=2000
 
 # 从第多少步开始允许保存 checkpoint
-SAVE_STEPS_START=2000
+SAVE_STEPS_START=0
 
 # 是否只保存模型，不保存优化器和 scheduler
 SAVE_MODEL_ONLY=True
@@ -168,7 +168,7 @@ USE_INFERENCE_PREFIX_OVERWRITE=True
 # =============================================================================
 # 输出目录
 # =============================================================================
-MODEL_NAME="bread_$(date +%Y%m%d_%H%M%S)"
+MODEL_NAME="flower_$(date +%Y%m%d_%H%M%S)"
 OUTPUT_DIR="${OUTPUT_ROOT}/${MODEL_NAME}"
 LOG_DIR="${LOG_ROOT}"
 LOG_FILE="${OUTPUT_DIR}/training.log"

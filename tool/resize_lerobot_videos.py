@@ -47,6 +47,22 @@ def parse_args() -> argparse.Namespace:
         help="Path to the output LeRobot dataset root.",
     )
     parser.add_argument(
+        "--ffmpeg-bin",
+        default="ffmpeg",
+        help="ffmpeg executable path or command name.",
+    )
+    parser.add_argument(
+        "--ffprobe-bin",
+        default="ffprobe",
+        help="ffprobe executable path or command name.",
+    )
+    parser.add_argument(
+        "--decode-backend",
+        choices=["auto", "ffmpeg", "pyav"],
+        default="auto",
+        help="How to decode input video. auto tries ffmpeg first and falls back to pyav.",
+    )
+    parser.add_argument(
         "--camera-key",
         dest="camera_keys",
         action="append",
@@ -65,6 +81,11 @@ def parse_args() -> argparse.Namespace:
         "--video-codec",
         default="libx264",
         help="ffmpeg video codec for resized videos, for example libx264 or libsvtav1.",
+    )
+    parser.add_argument(
+        "--input-decoder",
+        default="auto",
+        help="Decoder override for ffmpeg input. Default 'auto' will prefer libdav1d for AV1 when available.",
     )
     parser.add_argument(
         "--crf",
@@ -92,8 +113,59 @@ def parse_args() -> argparse.Namespace:
 
 
 def require_binary(name: str) -> None:
+    binary_path = Path(name)
+    if binary_path.is_file():
+        return
     if shutil.which(name) is None:
         raise FileNotFoundError(f"Required executable not found in PATH: {name}")
+
+
+def get_available_decoders(ffmpeg_bin: str) -> set[str]:
+    result = subprocess.run(
+        [ffmpeg_bin, "-hide_banner", "-decoders"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    decoders: set[str] = set()
+    output_text = f"{result.stdout}\n{result.stderr}"
+    for line in output_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("Decoders:") or stripped.startswith("------"):
+            continue
+        parts = stripped.split()
+        if len(parts) < 2:
+            continue
+        flags = parts[0]
+        if len(flags) == 6 and flags[0] in {"V", "A", "S"}:
+            decoders.add(parts[1])
+    return decoders
+
+
+def build_decoder_candidates(
+    input_codec: str | None,
+    input_decoder: str,
+    available_decoders: set[str],
+) -> list[str | None]:
+    if input_decoder != "auto":
+        if input_decoder in {"default", "none"}:
+            return [None]
+        if input_decoder not in available_decoders:
+            available_text = ", ".join(sorted(available_decoders))
+            raise ValueError(
+                f"Requested decoder '{input_decoder}' is not available in current ffmpeg. "
+                f"Available decoders: {available_text}"
+            )
+        return [input_decoder]
+
+    if input_codec == "av1":
+        preferred = ["libdav1d", "libaom-av1", "av1"]
+        candidates = [decoder for decoder in preferred if decoder in available_decoders]
+        if not candidates:
+            return [None]
+        return candidates
+
+    return [None]
 
 
 def load_json(path: Path) -> dict:
@@ -178,28 +250,53 @@ def build_scale_filter(width: int, height: int, resize_mode: str) -> str:
     )
 
 
-def run_ffmpeg_resize(
-    src_video: Path,
+def resize_pil_image(image, width: int, height: int, resize_mode: str):
+    from PIL import Image
+
+    image = image.convert("RGB")
+    if resize_mode == "stretch":
+        return image.resize((width, height), Image.Resampling.LANCZOS)
+
+    src_width, src_height = image.size
+    scale = min(width / src_width, height / src_height)
+    resized_width = max(1, int(round(src_width * scale)))
+    resized_height = max(1, int(round(src_height * scale)))
+    resized = image.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (width, height), color=(0, 0, 0))
+    offset_x = (width - resized_width) // 2
+    offset_y = (height - resized_height) // 2
+    canvas.paste(resized, (offset_x, offset_y))
+    return canvas
+
+
+def encode_pil_frames_with_ffmpeg(
+    ffmpeg_bin: str,
     dst_video: Path,
+    frames,
     width: int,
     height: int,
     fps: float | int | None,
-    resize_mode: str,
     video_codec: str,
     crf: int,
     preset: str,
 ) -> None:
     dst_video.parent.mkdir(parents=True, exist_ok=True)
-    vf = build_scale_filter(width, height, resize_mode)
-
+    output_fps = fps if fps is not None else 30
     command = [
-        "ffmpeg",
+        ffmpeg_bin,
         "-y",
+        "-hide_banner",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s:v",
+        f"{width}x{height}",
+        "-r",
+        str(output_fps),
         "-i",
-        str(src_video),
+        "-",
         "-an",
-        "-vf",
-        vf,
         "-c:v",
         video_codec,
         "-preset",
@@ -210,13 +307,252 @@ def run_ffmpeg_resize(
         "yuv420p",
         "-movflags",
         "+faststart",
+        str(dst_video),
     ]
 
-    if fps is not None:
-        command.extend(["-r", str(fps)])
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        frame_count = 0
+        for image in frames:
+            process.stdin.write(image.tobytes())
+            frame_count += 1
+        process.stdin.close()
+        stderr = process.stderr.read().decode("utf-8", errors="replace")
+        return_code = process.wait()
+        if return_code != 0:
+            raise RuntimeError(
+                f"ffmpeg encode failed for {dst_video}.\nLast ffmpeg stderr:\n{stderr[-4000:]}"
+            )
+        if frame_count == 0:
+            raise RuntimeError(f"No frames were decoded from source video for {dst_video}")
+    finally:
+        if process.stdin and not process.stdin.closed:
+            process.stdin.close()
+        if process.stderr:
+            process.stderr.close()
 
-    command.append(str(dst_video))
-    subprocess.run(command, check=True, stdout=subprocess.DEVNULL)
+
+def run_pyav_resize(
+    ffmpeg_bin: str,
+    src_video: Path,
+    dst_video: Path,
+    width: int,
+    height: int,
+    fps: float | int | None,
+    resize_mode: str,
+    video_codec: str,
+    crf: int,
+    preset: str,
+) -> str:
+    try:
+        import av
+    except ImportError as exc:
+        raise RuntimeError(
+            "PyAV backend requested but Python package 'av' is not installed in the current environment."
+        ) from exc
+
+    container = av.open(str(src_video))
+    try:
+        stream = container.streams.video[0]
+        stream.thread_type = "AUTO"
+        resolved_fps = fps
+        if resolved_fps is None and stream.average_rate is not None:
+            resolved_fps = float(stream.average_rate)
+
+        def frame_generator():
+            for frame in container.decode(stream):
+                yield resize_pil_image(frame.to_image(), width, height, resize_mode)
+
+        encode_pil_frames_with_ffmpeg(
+            ffmpeg_bin=ffmpeg_bin,
+            dst_video=dst_video,
+            frames=frame_generator(),
+            width=width,
+            height=height,
+            fps=resolved_fps,
+            video_codec=video_codec,
+            crf=crf,
+            preset=preset,
+        )
+    finally:
+        container.close()
+
+    return "pyav"
+
+
+def run_ffmpeg_resize(
+    ffmpeg_bin: str,
+    src_video: Path,
+    dst_video: Path,
+    width: int,
+    height: int,
+    fps: float | int | None,
+    input_codec: str | None,
+    input_decoder: str,
+    available_decoders: set[str],
+    resize_mode: str,
+    video_codec: str,
+    crf: int,
+    preset: str,
+) -> str | None:
+    dst_video.parent.mkdir(parents=True, exist_ok=True)
+    vf = build_scale_filter(width, height, resize_mode)
+    decoder_candidates = build_decoder_candidates(
+        input_codec=input_codec,
+        input_decoder=input_decoder,
+        available_decoders=available_decoders,
+    )
+
+    last_error: subprocess.CalledProcessError | None = None
+    last_stderr = ""
+    for decoder in decoder_candidates:
+        command = [
+            ffmpeg_bin,
+            "-y",
+            "-hwaccel",
+            "none",
+            "-hide_banner",
+        ]
+        if decoder:
+            command.extend(["-c:v", decoder])
+        command.extend([
+            "-i",
+            str(src_video),
+            "-an",
+            "-vf",
+            vf,
+            "-c:v",
+            video_codec,
+            "-preset",
+            preset,
+            "-crf",
+            str(crf),
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+        ])
+
+        if fps is not None:
+            command.extend(["-r", str(fps)])
+
+        command.append(str(dst_video))
+        try:
+            subprocess.run(
+                command,
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            return decoder
+        except subprocess.CalledProcessError as exc:
+            last_error = exc
+            last_stderr = exc.stderr[-4000:] if exc.stderr else ""
+            if dst_video.exists():
+                dst_video.unlink()
+
+    if last_error is not None:
+        decoder_text = ", ".join("default" if item is None else item for item in decoder_candidates)
+        raise RuntimeError(
+            f"Failed to resize video {src_video} with decoder candidates [{decoder_text}].\n"
+            f"Last ffmpeg stderr:\n{last_stderr}"
+        ) from last_error
+    raise RuntimeError(f"Failed to resize video: {src_video}")
+
+
+def run_resize_with_backend(
+    decode_backend: str,
+    ffmpeg_bin: str,
+    src_video: Path,
+    dst_video: Path,
+    width: int,
+    height: int,
+    fps: float | int | None,
+    input_codec: str | None,
+    input_decoder: str,
+    available_decoders: set[str],
+    resize_mode: str,
+    video_codec: str,
+    crf: int,
+    preset: str,
+) -> str:
+    if decode_backend == "ffmpeg":
+        result = run_ffmpeg_resize(
+            ffmpeg_bin=ffmpeg_bin,
+            src_video=src_video,
+            dst_video=dst_video,
+            width=width,
+            height=height,
+            fps=fps,
+            input_codec=input_codec,
+            input_decoder=input_decoder,
+            available_decoders=available_decoders,
+            resize_mode=resize_mode,
+            video_codec=video_codec,
+            crf=crf,
+            preset=preset,
+        )
+        return result or "ffmpeg-default"
+
+    if decode_backend == "pyav":
+        return run_pyav_resize(
+            ffmpeg_bin=ffmpeg_bin,
+            src_video=src_video,
+            dst_video=dst_video,
+            width=width,
+            height=height,
+            fps=fps,
+            resize_mode=resize_mode,
+            video_codec=video_codec,
+            crf=crf,
+            preset=preset,
+        )
+
+    try:
+        result = run_ffmpeg_resize(
+            ffmpeg_bin=ffmpeg_bin,
+            src_video=src_video,
+            dst_video=dst_video,
+            width=width,
+            height=height,
+            fps=fps,
+            input_codec=input_codec,
+            input_decoder=input_decoder,
+            available_decoders=available_decoders,
+            resize_mode=resize_mode,
+            video_codec=video_codec,
+            crf=crf,
+            preset=preset,
+        )
+        return result or "ffmpeg-default"
+    except Exception as ffmpeg_error:
+        if dst_video.exists():
+            dst_video.unlink()
+        try:
+            return run_pyav_resize(
+                ffmpeg_bin=ffmpeg_bin,
+                src_video=src_video,
+                dst_video=dst_video,
+                width=width,
+                height=height,
+                fps=fps,
+                resize_mode=resize_mode,
+                video_codec=video_codec,
+                crf=crf,
+                preset=preset,
+            )
+        except Exception as pyav_error:
+            raise RuntimeError(
+                f"Both ffmpeg and pyav decode backends failed for {src_video}.\n"
+                f"ffmpeg error: {ffmpeg_error}\n"
+                f"pyav error: {pyav_error}"
+            ) from pyav_error
 
 
 def parse_ffprobe_fps(value: str) -> float | None:
@@ -231,9 +567,9 @@ def parse_ffprobe_fps(value: str) -> float | None:
     return float(value)
 
 
-def probe_video(video_path: Path) -> dict:
+def probe_video(ffprobe_bin: str, video_path: Path) -> dict:
     command = [
-        "ffprobe",
+        ffprobe_bin,
         "-v",
         "error",
         "-select_streams",
@@ -246,7 +582,15 @@ def probe_video(video_path: Path) -> dict:
     ]
     result = subprocess.run(command, check=True, capture_output=True, text=True)
     payload = json.loads(result.stdout)
-    stream = payload["streams"][0]
+    streams = payload.get("streams", [])
+    if not streams:
+        stderr_text = result.stderr.strip()
+        raise RuntimeError(
+            f"ffprobe found no video stream in file: {video_path}\n"
+            f"ffprobe stdout: {result.stdout.strip()}\n"
+            f"ffprobe stderr: {stderr_text}"
+        )
+    stream = streams[0]
     return {
         "codec_name": stream.get("codec_name"),
         "pix_fmt": stream.get("pix_fmt"),
@@ -291,8 +635,9 @@ def update_info_meta(
 
 def main() -> None:
     args = parse_args()
-    require_binary("ffmpeg")
-    require_binary("ffprobe")
+    require_binary(args.ffmpeg_bin)
+    require_binary(args.ffprobe_bin)
+    available_decoders = get_available_decoders(args.ffmpeg_bin)
 
     input_root = args.input_dataset.resolve()
     output_root = args.output_dataset.resolve()
@@ -358,15 +703,21 @@ def main() -> None:
 
         camera_key = relative.parts[1]
         if camera_key in selected_key_set:
+            src_probe = probe_video(args.ffprobe_bin, src_video)
             feature_meta = info_meta["features"].get(camera_key, {})
             info_block = feature_meta.get("info", feature_meta.get("video_info", {}))
             fps = info_block.get("video.fps")
-            run_ffmpeg_resize(
+            used_decoder = run_resize_with_backend(
+                decode_backend=args.decode_backend,
+                ffmpeg_bin=args.ffmpeg_bin,
                 src_video=src_video,
                 dst_video=dst_video,
                 width=args.width,
                 height=args.height,
                 fps=fps,
+                input_codec=src_probe.get("codec_name"),
+                input_decoder=args.input_decoder,
+                available_decoders=available_decoders,
                 resize_mode=args.resize_mode,
                 video_codec=args.video_codec,
                 crf=args.crf,
@@ -374,13 +725,13 @@ def main() -> None:
             )
             resized_count += 1
             first_resized_video_for_key.setdefault(camera_key, dst_video)
-            print(f"[{index}/{len(video_files)}] resized {relative}")
+            print(f"[{index}/{len(video_files)}] resized {relative} with decoder={used_decoder}")
         else:
             copy_or_link_file(src_video, dst_video, mode=args.copy_mode)
             copied_count += 1
 
     probe_results = {
-        key: probe_video(video_path)
+        key: probe_video(args.ffprobe_bin, video_path)
         for key, video_path in first_resized_video_for_key.items()
     }
 

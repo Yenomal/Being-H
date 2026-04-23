@@ -110,7 +110,7 @@ DATASET_INFO = {
     'bread_posttrain': {
         'bread': {
             # Repository-relative dataset resolution, avoiding machine-specific absolute paths.
-            'dataset_path': "../../datasets/lerobot/test_EE",
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_resize",
         },
     },
 

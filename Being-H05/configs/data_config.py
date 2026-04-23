@@ -290,8 +290,8 @@ class BreadDataConfig(BaseDataConfig):
     # use the offline-converted axis-angle columns below.
     # Comment these two lines out when future datasets already store axis-angle
     # directly in `observation.state` and `action`.
-    STATE_SOURCE_COLUMN_OVERRIDE = 'observation.state_axis_angle'
-    ACTION_SOURCE_COLUMN_OVERRIDE = 'action_axis_angle'
+    # STATE_SOURCE_COLUMN_OVERRIDE = 'observation.state_axis_angle'
+    # ACTION_SOURCE_COLUMN_OVERRIDE = 'action_axis_angle'
 
     # Axis-angle layout used by this config:
     # - first 3 dims: EEF position

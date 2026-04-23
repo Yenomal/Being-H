@@ -1,0 +1,2 @@
+# beingh05_rl
+这一版想引入一些rl方案来post-train模型，同时也可以实践一下我们那些idea
