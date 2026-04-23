@@ -60,7 +60,7 @@ MASTER_PORT=29116
 # 训练步数与保存配置
 # =============================================================================
 # 总训练步数
-MAX_STEPS=20000
+MAX_STEPS=40000
 
 # 每隔多少步保存一次 checkpoint
 SAVE_STEPS=2000
@@ -89,10 +89,10 @@ GRADIENT_ACCUMULATION_STEPS=1
 # 数据加载配置
 # =============================================================================
 # DataLoader worker 数
-NUM_WORKERS=0
+NUM_WORKERS=32
 
 # 每个 worker 预取 batch 数
-PREFETCH_FACTOR=2
+PREFETCH_FACTOR=4
 
 # =============================================================================
 # Token packing / 等效 batch 配置
@@ -110,9 +110,9 @@ PREFETCH_FACTOR=2
 #
 # MAX_BUFFER_SIZE:
 #   buffer 最多缓存多少个样本
-MAX_NUM_TOKENS=8192
-EXPECTED_NUM_TOKENS=4096
-PREFER_BUFFER_BEFORE=2048
+MAX_NUM_TOKENS=8704
+EXPECTED_NUM_TOKENS=8192
+PREFER_BUFFER_BEFORE=4096
 MAX_BUFFER_SIZE=4
 
 # 注意力模式
@@ -122,7 +122,7 @@ ATTN_MODE="causal"
 # 图像 / 视角配置
 # =============================================================================
 # 输入图像尺寸
-FORCE_IMAGE_SIZE=224
+FORCE_IMAGE_SIZE=480
 
 # 最多使用多少个视角
 # -1 表示使用 DataConfig 中的全部视角
@@ -138,7 +138,7 @@ DOWN_SAMPLE_RATIO=0.5
 # 动作生成配置
 # =============================================================================
 # 每次预测多少步动作
-ACTION_CHUNK_LENGTH=16
+ACTION_CHUNK_LENGTH=64
 
 # =============================================================================
 # 冻结配置

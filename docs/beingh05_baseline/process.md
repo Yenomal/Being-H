@@ -19,8 +19,8 @@
 ```
 PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpos是关节状态，action是控制指令，
 - 待办：
-- [] 需要确认这里的hdf5具体数据内涵（velocity / effort是什么？接入不接入）
-- [] action和qpos是否同顺序同语义
+- [x] 需要确认这里的hdf5具体数据内涵（velocity / effort是什么？接入不接入）
+- [x] action和qpos是否同顺序同语义
 - [x] 需要action是delta还是absolute —— absolute
 - [x] 四元数的格式是wxyz还是xyzw —— xyzw
 ---
@@ -36,7 +36,7 @@ PS. 输入过来的数据包括——末端位姿（7）+灵巧手（12），qpo
 ```
 PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用extra的位置，这样不一定好用
 - 待办：
-- [] 需要查看原文对于XHand的支持如何
+- [x] 需要查看原文对于XHand的支持如何
 - [] 确认dataset_info.py内的SftJSONLIterableDataset是什么数据集
 ---
 
@@ -49,15 +49,16 @@ PS. 我们的灵巧手自由度 12 超过了预设的 6 自由度，只能使用
 4. Output路径
 5. Datasets、Ckpt路径
 ```
-PS. 通过token控制了batch量
+PS. 通过token控制了batch量，模型的推理延迟大概150ms，拓宽图像可能会增大延迟，可以跑一个resize试试
 
-## 下一步计划
-
-- [] 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
-
-- [] 对齐config和data，看看有没有需要对data进行处理的部分
-
-- [] 对齐输出和底层控制
+4. inference
+```text
+在真机上部署C/S结构，步骤为：
+1. 开启ROS
+2. 开启server
+3. 开启client
+```
+这一部分有点乱后面整理一个**封装好的client**
 
 ## 相关脚本记录
 
@@ -96,7 +97,7 @@ bash Being-H05/scripts/train/train.sh
 
 1. 需要pip install av -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-2. 项目的cuda版本是13.0，但是我们的服务器最高只支持12.8，需要先装torch——pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128，然后安装requirements.txt内容，然后安装flash-attn，后续可以尝试一下cuda12.1——pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+2. 项目的cuda版本是13.0，但是我们的服务器最高只支持12.8
 
 3. 接续上面2，我们重装torch后重装flash-attn，发现报错限制flash-attn二进制文件错误，这是因为flash-attn重装的时候缓存信息还在，so依然指向cuda13.0，需要先清理缓存信息
 
@@ -115,6 +116,8 @@ bash Being-H05/scripts/train/train.sh
 
 3. 调整train bash脚本内容，主要是GPU相关信息
 
+**针对不同的数据集，最关键的就是输入格式对齐、数据归一化（体现在config上）、任务相关设定（体现在bash脚本上）**
+
 ---
 - Inference
 
@@ -125,7 +128,7 @@ bash Being-H05/scripts/train/train.sh
 --- 
 - python环境
 
-- 配置清华镜像源：pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+- 配置
 
 1. 安装torch（同时安装配套的cuda，建议装12.1，比较稳定）
     1. cuda12.1：pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1（至少需要torch >= 2.5，因为flex_attention需要，装好了运行的时候可能也找不到，需要unset掉一个环境变量——unset LD_LIBRARY_PATH）
@@ -144,6 +147,26 @@ bash Being-H05/scripts/train/train.sh
     ```
     2. 安装 flash-attn
     ``text
-    ABI=true：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.4/cu12/abiTRUE/cp310/flash_attn-2.8.3+cu12torch2.4cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"
-    ABI=false：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.4/cu12/abiFALSE/cp310/flash_attn-2.8.3+cu12torch2.4cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+    ABI=true：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.5/cu12/abiTRUE/cp310/flash_attn-2.8.3+cu12torch2.5cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"
+    ABI=false：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.5/cu12/abiFALSE/cp310/flash_attn-2.8.3+cu12torch2.5cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
     ```
+
+## TODO
+
+- [x] 为了更好地调节config，后续会增加一个config.yaml template方便填写，而在data_config和dataset_info内的config偏注册性质，不进行template
+
+- [] 对齐config和data，看看有没有需要对data进行处理的部分
+
+- [x] 对齐输出和底层控制
+
+- [x] 整理train bash脚本和config适配
+
+## 下一步计划
+
+当前训练了三个实验——bread、bread_0，其中bread的batch小、步数少没开MPG，整体收敛比较好，bread_0做了MPG的消融实验但是在10k步左右收敛不了，是因为学习率使用余弦调度，而我们总步数设定了100k导致一直学习率太高，下一步我们将会在稳定的post-train上先做一点工作
+
+- [] 参数调节 —— 小学习率、少总步数
+
+- [] 看看减小总步数后怎么样，可以考虑增加一些别的归一化的trick，我们当前的state-action归一化还基本没做
+
+- [] 尝试引入 RTC

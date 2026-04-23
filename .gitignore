@@ -86,9 +86,6 @@ Icon?
 .vercel
 .netlify
 
-# ckpt
-ckpt/
-
 # cuda file
 cuda_13.0.0_580.65.06_linux.run
 cuda_12.1.0_530.30.02_linux.run
@@ -97,6 +94,20 @@ cuda_12.8.0_570.86.10_linux.run
 # process file
 AI_docs/
 datasets/
+reference/*
+!reference/deploy_act_deoxys_xhand.py
+!reference/deploy_act_deoxys_xhand.sh
+!reference/deploy_beingh_deoxys_xhand.py
+!reference/deploy_beingh_deoxys_xhand.sh
+!reference/beingh_policy_server_ws.py
+!reference/robot_client_ws.py
+!reference/run_beingh_policy_server_ws.sh
+!reference/run_robot_client_ws.sh
+!reference/inference_plan.md
 
 # output
 output/
+
+# inference 
+reference/
+reference_backup/

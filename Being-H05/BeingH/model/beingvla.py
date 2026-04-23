@@ -58,6 +58,51 @@ def create_sparse_mask(document_lens, split_lens, attn_modes, device):
     return and_masks(or_masks(causal_mask, full_mask), sample_mask)
 
 
+def validate_visual_grid_shape(
+    image_height: int,
+    image_width: int,
+    patch_size: int,
+    downsample_ratio: float,
+    source: str,
+) -> None:
+    """Validate whether the current vision grid is compatible with pixel shuffle."""
+    if image_height <= 0 or image_width <= 0:
+        raise ValueError(f"Invalid image size from {source}: {image_height}x{image_width}")
+
+    grid_height = image_height // patch_size
+    grid_width = image_width // patch_size
+
+    if grid_height <= 0 or grid_width <= 0:
+        raise ValueError(
+            f"Image size {image_height}x{image_width} from {source} is smaller than patch_size={patch_size}."
+        )
+
+    if image_height % patch_size != 0 or image_width % patch_size != 0:
+        logger.warning(
+            "Image size %sx%s from %s is not divisible by patch_size=%s. "
+            "The patch embedding layer will drop the border pixels.",
+            image_height,
+            image_width,
+            source,
+            patch_size,
+        )
+
+    scaled_grid_height = grid_height * downsample_ratio
+    scaled_grid_width = grid_width * downsample_ratio
+
+    if abs(scaled_grid_height - round(scaled_grid_height)) > 1e-6 or abs(scaled_grid_width - round(scaled_grid_width)) > 1e-6:
+        lower_valid_size = (grid_height // 2) * 2 * patch_size
+        upper_valid_size = ((grid_height + 1) // 2) * 2 * patch_size
+        raise ValueError(
+            f"Unsupported image size {image_height}x{image_width} from {source} for patch_size={patch_size} "
+            f"and downsample_ratio={downsample_ratio}. The patch grid becomes {grid_height}x{grid_width}, "
+            f"but pixel_shuffle requires grid_height*downsample_ratio and grid_width*downsample_ratio to be integers. "
+            f"Current values are {scaled_grid_height:.3f} and {scaled_grid_width:.3f}. "
+            f"With the current settings, choose a square force_image_size whose patch grid is even, "
+            f"for example {lower_valid_size}, {upper_valid_size}, 224, 448, 560, or 672."
+        )
+
+
 class BeingHConfig(PretrainedConfig):
     model_type = 'beingh'
     is_composition = True
@@ -167,6 +212,14 @@ class BeingH(PreTrainedModel):
         config.llm_config.attn_implementation = 'flash_attention_2' if use_flash_attn else 'eager'
 
         self.config = config
+        if config.force_image_size is not None:
+            validate_visual_grid_shape(
+                image_height=config.force_image_size,
+                image_width=config.force_image_size,
+                patch_size=config.vit_config.patch_size,
+                downsample_ratio=self.downsample_ratio,
+                source=f"config.force_image_size={config.force_image_size}",
+            )
 
         self.vit_model = vit_model
         self.language_model = language_model
@@ -956,6 +1009,13 @@ class BeingH(PreTrainedModel):
         return x
 
     def extract_feature(self, pixel_values):
+        validate_visual_grid_shape(
+            image_height=pixel_values.shape[-2],
+            image_width=pixel_values.shape[-1],
+            patch_size=self.config.vit_config.patch_size,
+            downsample_ratio=self.downsample_ratio,
+            source="runtime pixel_values",
+        )
         if self.select_layer == -1:
             vit_embeds = self.vit_model(
                 pixel_values=pixel_values,
