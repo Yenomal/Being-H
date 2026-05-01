@@ -9,6 +9,7 @@ DATASET_REGISTRY = {
     'robocasa_human_posttrain': LeRobotIterableDataset,
     'uni_posttrain': LeRobotIterableDataset,
     'bread_posttrain': LeRobotIterableDataset,
+    'flower_posttrain': LeRobotIterableDataset,
 }
 
 
@@ -110,8 +111,24 @@ DATASET_INFO = {
     'bread_posttrain': {
         'bread': {
             # Repository-relative dataset resolution, avoiding machine-specific absolute paths.
-            'dataset_path': "/data/Being-H/datasets/lerobot/flower_resize",
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_head",
         },
+    },
+    
+    'flower_posttrain': {
+        'flower': {
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_delta",
+        },
+        'flower_new': {
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_new_delta",
+        },
+        ## 以上两个只用于head
+        'flower_4_27': {
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_4_27_delta",
+        },
+        'flower_4_28': {
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_4_28_delta",
+        }
     },
 
     'uni_posttrain': {

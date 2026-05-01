@@ -109,5 +109,7 @@ reference/*
 output/
 
 # inference 
-reference/
-reference_backup/
+inference/
+
+# ckpt
+ckpt/

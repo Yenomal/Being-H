@@ -110,7 +110,9 @@ python tool/resize_lerobot_videos.py \
 
 python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ffmpeg  --ffprobe-bin /root/ffmpeg-7.1-build/bin/ffprobe  --input-dataset datasets/lerobot/flower --output-dataset datasets/lerobot/flower_resize  --camera-key cam_side  --camera-key cam_wrist --width 480 --height 480 --resize-mode pad   --overwrite
 
-## 注意事项
+python tool/make_lerobot_delta_action.py   --input-dataset /data/Being-H/datasets/lerobot/flower_4_28   --output-dataset /data/Being-H/datasets/lerobot/flower_4_28_delta   --state-column observation.state   --action-column action   --delta-frame world   --hand-mode delta   --replace-action   --copy-mode copy   --overwrite
+
+## 问题记录
 
 1. 需要pip install av -i https://pypi.tuna.tsinghua.edu.cn/simple
 
@@ -119,6 +121,8 @@ python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ff
 3. 接续上面2，我们重装torch后重装flash-attn，发现报错限制flash-attn二进制文件错误，这是因为flash-attn重装的时候缓存信息还在，so依然指向cuda13.0，需要先清理缓存信息
 
 4. 记得配环境的时候增加镜像源，或者增加到本机的代理，最好增加镜像源：pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+5. nc114上面的RTX6000D对于单卡训练效果好很多，但是上面需要CUDA12.5以上，我们使用CUDA12.8+torch2.11的时候torch版本太高报错，我们的方案是重新将视频编码为h264+config配置为decord视频解码，后续可以看看降低torch版本和CUDA版本，但是需要找好flash-attn的wheel，认准https://huggingface.co/strangertoolshf
 
 ## 使用流程
 
@@ -149,7 +153,7 @@ python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ff
 
 1. 安装torch（同时安装配套的cuda，建议装12.1，比较稳定）
     1. cuda12.1：pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1（至少需要torch >= 2.5，因为flex_attention需要，装好了运行的时候可能也找不到，需要unset掉一个环境变量——unset LD_LIBRARY_PATH）
-    2. cuda12.8：pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0
+    2. cuda12.8：pip install torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0
 
 2. 安装requirements.txt（需要将av放进requirements.txt，否则单独安装av）：pip install -r ./Being-H05/requirements.txt
 
@@ -166,6 +170,8 @@ python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ff
     ``text
     ABI=true：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.5/cu12/abiTRUE/cp310/flash_attn-2.8.3+cu12torch2.5cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"
     ABI=false：pip install "https://huggingface.co/strangertoolshf/flash_attention_2_wheelhouse/resolve/main/wheelhouse-flash_attn-2.8.3/linux_x86_64/torch2.5/cu12/abiFALSE/cp310/flash_attn-2.8.3+cu12torch2.5cxx11abiFALSE-cp310-cp310-linux_x86_64.whl"
+
+    pip install "https://github.com/lesj0610/flash-attention/releases/download/v2.8.3-cu12-torch2.11-cp310/flash_attn-2.8.3+cu12torch2.11cxx11abiTRUE-cp310-cp310-linux_x86_64.whl"
     ```
 
 ## TODO
@@ -186,4 +192,5 @@ python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ff
 
 - [x] 看看减小总步数后怎么样，可以考虑增加一些别的归一化的trick，我们当前的state-action归一化还基本没做
 
-- [x] 尝试引入 RTC
+- [] 尝试引入 RTC
+

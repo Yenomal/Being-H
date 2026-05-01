@@ -279,7 +279,7 @@ class RobocasaHumanDataConfig(BaseDataConfig):
         return ComposedModalityTransform(transforms=transforms)
 
 
-class BreadDataConfig(BaseDataConfig):
+class AbsDataConfig(BaseDataConfig):
     VIDEO_KEYS = ['video.side_view', 'video.wrist_view']
     VIDEO_SOURCE_COLUMNS = {
         'video.side_view': 'observation.images.cam_side',
@@ -398,9 +398,129 @@ class BreadDataConfig(BaseDataConfig):
 
         return ComposedModalityTransform(transforms=transforms)
 
+class DeltaDataConfig(BaseDataConfig):
+    VIDEO_KEYS = ['video.side_view', 'video.wrist_view']
+    VIDEO_SOURCE_COLUMNS = {
+        'video.side_view': 'observation.images.cam_side',
+        'video.wrist_view': 'observation.images.cam_wrist',
+    }
+
+    # Temporary override for legacy bread data:
+    # use the offline-converted axis-angle columns below.
+    # Comment these two lines out when future datasets already store axis-angle
+    # directly in `observation.state` and `action`.
+    # STATE_SOURCE_COLUMN_OVERRIDE = 'observation.state_axis_angle'
+    # ACTION_SOURCE_COLUMN_OVERRIDE = 'action_axis_angle'
+
+    # Axis-angle layout used by this config:
+    # - first 3 dims: EEF position
+    # - next 3 dims: EEF rotation in axis-angle
+    # - next 12 dims: XHand joints, temporarily split into two 6-d groups
+    STATE_KEYS = [
+        'state.eef_position',
+        'state.eef_rotation',
+        'state.dexhand_position',
+        'state.dexhand_position_extra',
+    ]
+    ACTION_KEYS = [
+        'action.eef_position',
+        'action.eef_rotation',
+        'action.dexhand_position',
+        'action.dexhand_position_extra',
+    ]
+
+    LANGUAGE_KEYS = ['language.instruction']
+
+    UNIFIED_MAPPING: Dict[str, Tuple[int, int]] = {
+        'state.eef_position': (0, 3),
+        'state.eef_rotation': (3, 6),
+        'state.dexhand_position': (20, 26),
+        'state.dexhand_position_extra': (26, 32),
+
+        'action.eef_position': (0, 3),
+        'action.eef_rotation': (3, 6),
+        'action.dexhand_position': (20, 26),
+        'action.dexhand_position_extra': (26, 32),
+    }
+
+    state_normalization_modes = {}
+    action_normalization_modes = {}
+
+    def get_feature_meta(self):
+        return {
+            'state.eef_position': ("3-d absolute eef position (xyz)", 3),
+            'state.eef_rotation': (
+                f"{TARGET_STATE_ROTATION_DIM}-d absolute eef rotation ({TARGET_STATE_ROTATION_TYPE})",
+                TARGET_STATE_ROTATION_DIM,
+            ),
+            'state.dexhand_position': ("6-d absolute dexhand joint position", 6),
+            'state.dexhand_position_extra': ("6-d absolute dexhand extra joint position", 6),
+            'action.eef_position': ("3-d absolute eef position action", 3),
+            'action.eef_rotation': (
+                f"{TARGET_ACTION_ROTATION_DIM}-d absolute eef rotation action ({TARGET_ACTION_ROTATION_TYPE})",
+                TARGET_ACTION_ROTATION_DIM,
+            ),
+            'action.dexhand_position': ("6-d absolute dexhand joint action", 6),
+            'action.dexhand_position_extra': ("6-d absolute dexhand extra joint action", 6),
+        }
+
+    def define_modalities(self) -> Dict[str, ModalityDef]:
+        state_source_column = getattr(self, 'STATE_SOURCE_COLUMN_OVERRIDE', 'observation.state')
+        action_source_column = getattr(self, 'ACTION_SOURCE_COLUMN_OVERRIDE', 'action')
+
+        modalities = {
+            'language.instruction': ModalityDef(source_column='task_index', start=0, end=0),
+
+            'state.eef_position': ModalityDef(
+                source_column=state_source_column, start=0, end=3
+            ),
+            'state.eef_rotation': ModalityDef(
+                source_column=state_source_column, start=3, end=6, rotation_type="axis_angle"
+            ),
+            'state.dexhand_position': ModalityDef(
+                source_column=state_source_column, start=6, end=12
+            ),
+            'state.dexhand_position_extra': ModalityDef(
+                source_column=state_source_column, start=12, end=18
+            ),
+
+            'action.eef_position': ModalityDef(
+                source_column=action_source_column, start=0, end=3, absolute=False
+            ),
+            'action.eef_rotation': ModalityDef(
+                source_column=action_source_column, start=3, end=6, absolute=False, rotation_type="axis_angle"
+            ),
+            'action.dexhand_position': ModalityDef(
+                source_column=action_source_column, start=6, end=12, absolute=False
+            ),
+            'action.dexhand_position_extra': ModalityDef(
+                source_column=action_source_column, start=12, end=18, absolute=False
+            ),
+        }
+        modalities = self.add_video_modality(modalities)
+        return modalities
+
+    def get_transforms(self) -> ModalityTransform:
+        transforms = [
+            StateActionToTensor(apply_to=self.STATE_KEYS),
+            StateActionTransform(
+                apply_to=self.STATE_KEYS,
+                normalization_modes=self.state_normalization_modes,
+            ),
+
+            StateActionToTensor(apply_to=self.ACTION_KEYS),
+            StateActionTransform(
+                apply_to=self.ACTION_KEYS,
+                normalization_modes=self.action_normalization_modes,
+            ),
+        ]
+
+        return ComposedModalityTransform(transforms=transforms)
+
 
 DATA_CONFIG_MAP = {
     "libero_nonorm": LiberoNoNormDataConfig,
     "robocasa_human": RobocasaHumanDataConfig,
-    "bread": BreadDataConfig,
+    "bread": AbsDataConfig,
+    "flower": DeltaDataConfig,
 }

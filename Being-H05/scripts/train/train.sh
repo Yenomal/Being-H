@@ -31,7 +31,7 @@ EXPERT_MODEL="${ROOT}/ckpt/model/Qwen3-0.6B"
 RESUME_PATH="${ROOT}/ckpt/Being-H05-2B"
 
 # 数据配置 YAML 路径
-DATASET_CONFIG_FILE="${ROOT}/Being-H05/configs/posttrain/bread/bread.yaml"
+DATASET_CONFIG_FILE="${ROOT}/Being-H05/configs/posttrain/flower/flower.yaml"
 
 # 输出根目录
 OUTPUT_ROOT="${ROOT}/output/runs/flower"
@@ -47,23 +47,23 @@ cd "${PROJECT_ROOT}"
 # 指定要使用的物理 GPU 编号列表
 # 例如单卡：0
 # 例如四卡：4,5,6,7
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=0
 
 # 使用多少张“可见 GPU”
 # 这个值应与 CUDA_VISIBLE_DEVICES 里的卡数一致
 NUM_GPUS=1
 
 # torchrun 通信端口
-MASTER_PORT=29128
+MASTER_PORT=29111
 
 # =============================================================================
 # 训练步数与保存配置
 # =============================================================================
 # 总训练步数
-MAX_STEPS=30000
+MAX_STEPS=40000
 
 # 每隔多少步保存一次 checkpoint
-SAVE_STEPS=2000
+SAVE_STEPS=40000
 
 # 从第多少步开始允许保存 checkpoint
 SAVE_STEPS_START=0
@@ -79,7 +79,7 @@ SAVE_MERGED_META=True
 # =============================================================================
 LEARNING_RATE=1e-4
 WEIGHT_DECAY=1e-5
-WARMUP_RATIO=0.01
+WARMUP_RATIO=0.05
 
 # 累积梯度步数
 # 想增大等效 batch、但又不想显存暴涨时可以调大
@@ -122,14 +122,14 @@ ATTN_MODE="causal"
 # 图像 / 视角配置
 # =============================================================================
 # 输入图像尺寸
-FORCE_IMAGE_SIZE=480
+FORCE_IMAGE_SIZE=448
 
 # 最多使用多少个视角
 # -1 表示使用 DataConfig 中的全部视角
 MAX_VIEW_NUM=-1
 
 # 是否固定只使用一个视角
-USE_FIXED_VIEW=False
+USE_FIXED_VIEW=True
 
 # ViT token 下采样比例
 DOWN_SAMPLE_RATIO=0.5
@@ -138,7 +138,7 @@ DOWN_SAMPLE_RATIO=0.5
 # 动作生成配置
 # =============================================================================
 # 每次预测多少步动作
-ACTION_CHUNK_LENGTH=64
+ACTION_CHUNK_LENGTH=16
 
 # =============================================================================
 # 冻结配置
@@ -160,15 +160,15 @@ MPG_USE_STOP_GRADIENT=True
 # =============================================================================
 # RTC 配置
 # =============================================================================
-USE_TRAINING_TIME_RTC=False
-SIMULATED_DELAY=0
+USE_TRAINING_TIME_RTC=True
+SIMULATED_DELAY=8
 RTC_DELAY_EXP_WEIGHT=True
 USE_INFERENCE_PREFIX_OVERWRITE=True
 
 # =============================================================================
 # 输出目录
 # =============================================================================
-MODEL_NAME="flower_$(date +%Y%m%d_%H%M%S)"
+MODEL_NAME="flower_delta_head"
 OUTPUT_DIR="${OUTPUT_ROOT}/${MODEL_NAME}"
 LOG_DIR="${LOG_ROOT}"
 LOG_FILE="${OUTPUT_DIR}/training.log"

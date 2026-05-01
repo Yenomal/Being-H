@@ -399,11 +399,11 @@ class BeingHPolicy(BasePolicy):
 
     def _setup_tokenizer(self):
         """Setup tokenizer and extract special token IDs."""
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_path,
-            use_fast=False,
-            trust_remote_code=True
-        )
+        _, _, TokenizerClass = VERSION_CONFIGS[self._detect_llm_version(self.model.config.llm_config)]
+        tokenizer_kwargs = dict(use_fast=False, trust_remote_code=True)
+        if TokenizerClass is AutoTokenizer:
+            tokenizer_kwargs["config"] = self.model.config.llm_config
+        self.tokenizer = TokenizerClass.from_pretrained(self.model_path, **tokenizer_kwargs)
         
         # Get special token IDs
         tokens = [

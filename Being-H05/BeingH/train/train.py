@@ -824,6 +824,27 @@ def save_dataset_metadata(train_dataset, training_args, dataset_meta, logger):
         logger.info(f"Successfully saved dataset metadata to {metadata_filepath}")
 
 
+def validate_runtime_arguments(model_args: ModelArguments):
+    """Validate argument combinations that can silently break training."""
+    if model_args.simulated_delay is not None and model_args.simulated_delay < 0:
+        raise ValueError("simulated_delay must be >= 0.")
+
+    if not model_args.use_training_time_rtc:
+        return
+
+    if model_args.simulated_delay is None or model_args.simulated_delay < 2:
+        raise ValueError(
+            "RTC training requires simulated_delay >= 2. "
+            "Current implementation samples prefix delay in [0, simulated_delay)."
+        )
+
+    if model_args.simulated_delay > model_args.action_chunk_length:
+        raise ValueError(
+            f"RTC training requires simulated_delay <= action_chunk_length "
+            f"({model_args.action_chunk_length}). Got {model_args.simulated_delay}."
+        )
+
+
 # ==============================================================================
 # Main Training Loop
 # ==============================================================================
@@ -834,6 +855,7 @@ def main():
 
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    validate_runtime_arguments(model_args)
 
     world_size = dist.get_world_size()
     logger = setup_logging(training_args.output_dir, dist.get_rank())
