@@ -324,8 +324,18 @@ class AbsDataConfig(BaseDataConfig):
         'action.dexhand_position_extra': (26, 32),
     }
 
-    state_normalization_modes = {}
-    action_normalization_modes = {}
+    state_normalization_modes = {
+        'state.eef_position': 'q99',
+        'state.eef_rotation': 'q99',
+        'state.dexhand_position': 'q99',
+        'state.dexhand_position_extra': 'q99',
+    }
+    action_normalization_modes = {
+        'action.eef_position': 'q99',
+        'action.eef_rotation': 'q99',
+        'action.dexhand_position': 'q99',
+        'action.dexhand_position_extra': 'q99',
+    }
 
     def get_feature_meta(self):
         return {
@@ -443,8 +453,18 @@ class DeltaDataConfig(BaseDataConfig):
         'action.dexhand_position_extra': (26, 32),
     }
 
-    state_normalization_modes = {}
-    action_normalization_modes = {}
+    state_normalization_modes = {
+        'state.eef_position': 'q99',
+        'state.eef_rotation': 'q99',
+        'state.dexhand_position': 'q99',
+        'state.dexhand_position_extra': 'q99',
+    }
+    action_normalization_modes = {
+        'action.eef_position': 'q99',
+        'action.eef_rotation': 'q99',
+        'action.dexhand_position': 'q99',
+        'action.dexhand_position_extra': 'q99',
+    }
 
     def get_feature_meta(self):
         return {

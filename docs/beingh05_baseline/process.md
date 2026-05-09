@@ -110,7 +110,7 @@ python tool/resize_lerobot_videos.py \
 
 python tool/resize_lerobot_videos.py  --ffmpeg-bin /root/ffmpeg-7.1-build/bin/ffmpeg  --ffprobe-bin /root/ffmpeg-7.1-build/bin/ffprobe  --input-dataset datasets/lerobot/flower --output-dataset datasets/lerobot/flower_resize  --camera-key cam_side  --camera-key cam_wrist --width 480 --height 480 --resize-mode pad   --overwrite
 
-python tool/make_lerobot_delta_action.py   --input-dataset /data/Being-H/datasets/lerobot/flower_4_28   --output-dataset /data/Being-H/datasets/lerobot/flower_4_28_delta   --state-column observation.state   --action-column action   --delta-frame world   --hand-mode delta   --replace-action   --copy-mode copy   --overwrite
+python tool/make_lerobot_delta_action.py   --input-dataset /data/Being-H/datasets/lerobot/flower_4_30   --output-dataset /data/Being-H/datasets/lerobot/flower_4_30_delta   --state-column observation.state   --action-column action   --delta-frame world   --hand-mode delta   --replace-action   --copy-mode copy   --overwrite
 
 ## 问题记录
 
