@@ -542,5 +542,5 @@ DATA_CONFIG_MAP = {
     "libero_nonorm": LiberoNoNormDataConfig,
     "robocasa_human": RobocasaHumanDataConfig,
     "bread": AbsDataConfig,
-    "flower": DeltaDataConfig,
+    "flower": AbsDataConfig,
 }

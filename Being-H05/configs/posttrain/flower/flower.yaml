@@ -2,25 +2,26 @@
 flower_posttrain:
   # 参与训练的子数据集名字列表，对应 DATASET_INFO['bread_posttrain'] 下的键
   dataset_names:
-  - flower
-  - flower_new
-  - flower_4_28
-  - flower_4_27
+  # - flower
+  # - flower_new
+  # - flower_4_28
+  # - flower_4_27
+  - flower_4_30
 
   # 每个子数据集对应一个 DataConfig 名字，对应 data_config.py 里的 DATA_CONFIG_MAP
   data_config_names:
   - "flower"
-  - "flower"
-  - "flower"
-  - "flower"
+  # - "flower"
+  # - "flower"
+  # - "flower"
 
   # 每个子数据集对应一个 embodiment 标签
   # 这里先用 new_embodiment 占位，后续如果新增正式 embodiment 枚举再替换
   embodiment_tags:
   - "new_embodiment"
-  - "new_embodiment"
-  - "new_embodiment"
-  - "new_embodiment"
+  # - "new_embodiment"
+  # - "new_embodiment"
+  # - "new_embodiment"
 
   # 采样策略
   # step: 以单步为采样单位
@@ -42,33 +43,33 @@ flower_posttrain:
   # 每个子数据集的视频抽帧步长，1 表示逐帧可采样
   frame_step_size:
   - 1
-  - 1
-  - 1
-  - 1
+  # - 1
+  # - 1
+  # - 1
 
   # 每个 task 最多使用多少个 episode
   # -1 表示该 task 下的所有 episode 都使用
   num_used_episodes_per_task:
   - -1
-  - -1
-  - -1
-  - -1
+  # - -1
+  # - -1
+  # - -1
 
   # 每个子数据集最多使用多少个 episode
   # -1 表示该子数据集所有 episode 都使用
   num_used_episodes_per_dataset:
   - -1
-  - -1
-  - -1
-  - -1
+  # - -1
+  # - -1
+  # - -1
 
   # 每个子数据集最多使用多少帧
   # -1 表示使用全部帧；正式训练建议保持 -1
   num_used_frames_per_dataset:
   - -1
-  - -1
-  - -1
-  - -1
+  # - -1
+  # - -1
+  # - -1
 
   # 该数据组在多数据组混合训练时的采样权重
   weight: 1

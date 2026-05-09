@@ -122,12 +122,15 @@ DATASET_INFO = {
         'flower_new': {
             'dataset_path': "/data/Being-H/datasets/lerobot/flower_new_delta",
         },
-        ## 以上两个只用于head
+        ## 以上两个只用side_camera
         'flower_4_27': {
             'dataset_path': "/data/Being-H/datasets/lerobot/flower_4_27_delta",
         },
         'flower_4_28': {
             'dataset_path': "/data/Being-H/datasets/lerobot/flower_4_28_delta",
+        },
+        'flower_4_30': {
+            'dataset_path': "/data/Being-H/datasets/lerobot/flower_4_30",
         }
     },
 
